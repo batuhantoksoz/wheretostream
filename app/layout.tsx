@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WhereToStream - Watch Movies & Series",
-  description: "Find where to stream movies in Turkey. Check Netflix, BluTV, Prime Video and more.",
+  title: "WhereToStream - Hangi Film Nerede İzlenir?",
+  description: "Netflix, BluTV, Prime Video ve Disney+ Türkiye içeriklerini arayın. Hangi filmin hangi platformda olduğunu hemen bulun.",
 };
 
 export default function RootLayout({

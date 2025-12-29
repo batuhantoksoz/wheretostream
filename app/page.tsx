@@ -4,15 +4,32 @@ import Link from 'next/link';
 
 export default function Home() {
   const [query, setQuery] = useState('');
-  const [movies, setMovies] = useState<any[]>([]);
+  const [movies, setMovies] = useState<any[]>([]); // Arama sonuçları
+  const [trending, setTrending] = useState<any[]>([]); // Türkiye trendleri
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // ⚡️ SİHİRLİ KISIM: Yazmayı bitirince otomatik ara (Debounce)
+  // Sayfa açılınca Türkiye'de popüler filmleri çek
   useEffect(() => {
-    // Sayaç başlat: Kullanıcı elini klavyeden çektikten yarım saniye sonra çalış
+    const fetchTrending = async () => {
+      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      try {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}&language=tr-TR&region=TR`
+        );
+        const data = await res.json();
+        setTrending(data.results?.slice(0, 10) || []); // İlk 10 popüler film
+      } catch (error) {
+        console.error("Trend hatası:", error);
+      }
+    };
+    fetchTrending();
+  }, []);
+
+  // Otomatik Tamamlama (Türkçe sonuçlar için language=tr-TR eklendi)
+  useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (query.length < 3) {
         setSuggestions([]);
@@ -20,17 +37,15 @@ export default function Home() {
         return;
       }
 
-      console.log("Otomatik aranıyor...", query); // Bunu konsolda göreceksin!
-
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       try {
         const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`
+          `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=tr-TR`
         );
         const data = await res.json();
         
         if (data.results) {
-          setSuggestions(data.results.slice(0, 5)); // İlk 5 sonucu göster
+          setSuggestions(data.results.slice(0, 5));
           setShowSuggestions(true);
         }
       } catch (error) {
@@ -41,7 +56,7 @@ export default function Home() {
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
 
-  // Enter'a basınca yapılan ana arama
+  // Ana Arama Fonksiyonu
   const searchMovies = async (e?: any) => {
     if (e) e.preventDefault();
     if (!query) return;
@@ -53,7 +68,7 @@ export default function Home() {
     const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
     try {
       const res = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`
+        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=tr-TR`
       );
       const data = await res.json();
       setMovies(data.results || []);
@@ -65,47 +80,47 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans">
       
-      {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 max-w-7xl mx-auto w-full">
-        <div className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+      {/* Navbar */}
+      <nav className="flex justify-between items-center p-6 max-w-7xl mx-auto w-full border-b border-gray-800/50">
+        <div className="text-2xl font-bold bg-gradient-to-r from-red-500 to-orange-600 bg-clip-text text-transparent">
           WhereToStream
         </div>
         <Link 
           href="/blog" 
           className="text-gray-300 hover:text-white font-medium hover:bg-white/10 px-4 py-2 rounded-full transition"
         >
-          Blog & Guides
+          Blog & Rehber
         </Link>
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center px-4 pt-20 pb-10">
-        <h1 className="text-5xl md:text-7xl font-bold text-center mb-6 tracking-tight">
-          Find where to watch <br />
-          <span className="text-blue-500">your favorite movies.</span>
+      <main className="flex-1 flex flex-col items-center px-4 pt-16 pb-10">
+        <h1 className="text-4xl md:text-6xl font-bold text-center mb-6 tracking-tight leading-tight">
+          Aradığın filmi <br />
+          <span className="text-red-500">hangi platformda</span> izleyebilirsin?
         </h1>
         
         <p className="text-gray-400 text-lg md:text-xl text-center mb-10 max-w-2xl">
-          Search for any movie to instantly see if it is streaming on Netflix, BluTV, Prime Video, or Apple TV in Turkey.
+          Netflix, BluTV, Prime Video veya Disney+... Türkiye'deki tüm platformları senin için tarıyoruz.
         </p>
 
-        {/* 🔍 ARAMA ALANI */}
+        {/* 🔍 ARAMA KUTUSU */}
         <div className="w-full max-w-2xl relative mb-16 z-50">
           <form onSubmit={searchMovies} className="relative">
             <input 
-              className="w-full p-5 pl-8 rounded-full bg-gray-900 border border-gray-700 text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-2xl transition-all"
-              placeholder="Search for a movie (e.g. Interstellar)..." 
+              className="w-full p-5 pl-8 rounded-full bg-gray-900 border border-gray-700 text-white text-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-2xl transition-all placeholder-gray-500"
+              placeholder="Film adı girin (Örn: Harry Potter)..." 
               value={query}
               onChange={(e) => setQuery(e.target.value)} 
               onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
             />
             <button 
               type="submit"
-              className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-full font-bold transition-colors"
+              className="absolute right-2 top-2 bottom-2 bg-red-600 hover:bg-red-700 text-white px-8 rounded-full font-bold transition-colors"
             >
-              {loading ? '...' : 'Search'}
+              {loading ? '...' : 'Ara'}
             </button>
           </form>
 
@@ -131,7 +146,7 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-white text-lg truncate">{movie.title}</h4>
                       <p className="text-sm text-gray-400">
-                        {movie.release_date?.split('-')[0] || 'Unknown'} • Movie
+                        {movie.release_date?.split('-')[0] || 'Tarih Yok'} • Film
                       </p>
                     </div>
                   </div>
@@ -141,49 +156,86 @@ export default function Home() {
           )}
         </div>
 
-        {/* Ana Sonuçlar */}
-        <div className="w-full max-w-7xl grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 z-0">
-          {movies.length > 0 ? (
-            movies.map((movie) => (
-              <Link href={`/movie/${movie.id}`} key={movie.id}>
-                <div className="group bg-gray-900 rounded-2xl overflow-hidden hover:scale-105 transition-transform duration-300 cursor-pointer h-full border border-gray-800 hover:border-blue-500/50 shadow-lg">
-                  <div className="relative aspect-[2/3]">
-                    {movie.poster_path ? (
-                      <img 
-                        src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
-                        className="w-full h-full object-cover"
-                        alt={movie.title}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gray-500">
-                        No Image
+        {/* SONUÇLAR VEYA TRENDLER */}
+        <div className="w-full max-w-7xl">
+          
+          {/* Eğer arama yapılmadıysa TRENDLERİ göster */}
+          {!hasSearched && trending.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6 text-gray-200 border-l-4 border-red-500 pl-4">
+                Türkiye'de Bu Hafta Popüler
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {trending.map((movie) => (
+                  <Link href={`/movie/${movie.id}`} key={movie.id}>
+                    <div className="group bg-gray-900 rounded-xl overflow-hidden hover:scale-105 transition-transform duration-300 cursor-pointer h-full border border-gray-800 hover:border-red-500/50 shadow-lg">
+                      <div className="relative aspect-[2/3]">
+                        <img 
+                          src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
+                          className="w-full h-full object-cover"
+                          alt={movie.title}
+                        />
+                        <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                          {(movie.vote_average || 0).toFixed(1)}
+                        </div>
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                  </div>
-                  
-                  <div className="p-4">
-                    <h3 className="font-bold text-white truncate">{movie.title}</h3>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-gray-400 text-sm">{movie.release_date?.split('-')[0] || 'N/A'}</span>
+                      <div className="p-3">
+                        <h3 className="font-bold text-white text-sm truncate">{movie.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {movie.release_date?.split('-')[0]}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </Link>
-            ))
-          ) : (
-            hasSearched && !loading && (
-              <div className="col-span-full text-center text-gray-500 mt-10">
-                No movies found. Try searching for something else!
+                  </Link>
+                ))}
               </div>
-            )
+            </div>
+          )}
+
+          {/* Arama Sonuçları */}
+          {hasSearched && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 z-0">
+              {movies.length > 0 ? (
+                movies.map((movie) => (
+                  <Link href={`/movie/${movie.id}`} key={movie.id}>
+                    <div className="group bg-gray-900 rounded-2xl overflow-hidden hover:scale-105 transition-transform duration-300 cursor-pointer h-full border border-gray-800 hover:border-red-500/50 shadow-lg">
+                      <div className="relative aspect-[2/3]">
+                        {movie.poster_path ? (
+                          <img 
+                            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
+                            className="w-full h-full object-cover"
+                            alt={movie.title}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gray-500">
+                            Resim Yok
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-bold text-white truncate">{movie.title}</h3>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-400 text-sm">{movie.release_date?.split('-')[0] || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                !loading && (
+                  <div className="col-span-full text-center text-gray-500 mt-10">
+                    Aradığınız kriterde film bulunamadı.
+                  </div>
+                )
+              )}
+            </div>
           )}
         </div>
       </main>
 
       <footer className="w-full border-t border-gray-800 py-8 mt-20 text-center">
         <p className="text-gray-500 text-sm">
-          © 2025 WhereToStream. This product uses the TMDB API but is not endorsed or certified by TMDB.
+          © 2025 WhereToStream. Tüm hakları saklıdır.
         </p>
       </footer>
     </div>
