@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { GoogleAnalytics, GoogleAdSense } from '@next/third-parties/google';
+import { GoogleAnalytics } from '@next/third-parties/google';
+import Script from 'next/script'; // 👇 AdSense için bunu kullanacağız
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,11 +25,16 @@ export default function RootLayout({
         {children}
       </body>
       
-      {/* Google Analytics */}
+      {/* Google Analytics (Bu çalışıyordu, dokunmadık) */}
       <GoogleAnalytics gaId="G-ZD270XMJ3Y" />
       
-      {/* AdSense Kodu */}
-      <GoogleAdSense publisherId="pub-8135530407990099" />
+      {/* 👇 AdSense Kodu (Manuel Yöntem - Hata Vermez) */}
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8135530407990099"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
     </html>
   );
 }
