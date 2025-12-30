@@ -242,13 +242,25 @@ export default function Home() {
       </main>
 
       <footer className="w-full border-t border-gray-800 py-10 mt-20 flex flex-col items-center text-center gap-6">
+        
+        {/* TMDB Uyarısı */}
         <div className="flex flex-col items-center gap-3 opacity-70 hover:opacity-100 transition-opacity">
           <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB Logo" className="h-5" />
           <p className="text-gray-500 text-xs max-w-sm leading-relaxed">
             Bu ürün TMDB verilerini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.
           </p>
         </div>
-        <p className="text-gray-600 text-sm">© 2025 WhereToStream. Tüm hakları saklıdır.</p>
+
+        {/* Yasal Linkler (AdSense İçin Zorunlu) */}
+        <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+          <Link href="/about" className="hover:text-white transition">Hakkımızda</Link>
+          <Link href="/privacy" className="hover:text-white transition">Gizlilik Politikası</Link>
+          <Link href="/contact" className="hover:text-white transition">İletişim</Link>
+        </div>
+
+        <p className="text-gray-600 text-sm">
+          © 2025 WhereToStream. Tüm hakları saklıdır.
+        </p>
       </footer>
     </div>
   );
