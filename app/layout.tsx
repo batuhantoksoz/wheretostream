@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { GoogleAnalytics } from '@next/third-parties/google';
+import { GoogleAnalytics, GoogleAdSense } from '@next/third-parties/google';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +23,12 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
       </body>
+      
+      {/* Google Analytics */}
       <GoogleAnalytics gaId="G-ZD270XMJ3Y" />
+      
+      {/* AdSense Kodu */}
+      <GoogleAdSense publisherId="pub-8135530407990099" />
     </html>
   );
 }
