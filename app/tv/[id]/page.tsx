@@ -1,48 +1,54 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-export default function TVDetail() {
-  const params = useParams();
-  const id = params?.id;
+// API Key
+const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+
+// Veri Çekme Fonksiyonları (Diziler İçin)
+async function getShow(id: string) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=tr-TR`,
+    { next: { revalidate: 3600 } }
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function getProviders(id: string) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/tv/${id}/watch/providers?api_key=${API_KEY}`,
+    { next: { revalidate: 3600 } }
+  );
+  const data = await res.json();
+  return data.results?.TR || null;
+}
+
+// 👇 DİNAMİK SEO BAŞLIĞI (Diziler İçin)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const show = await getShow(id);
   
-  const [show, setShow] = useState<any>(null);
-  const [providers, setProviders] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  if (!show) return { title: 'Dizi Bulunamadı' };
 
-  useEffect(() => {
-    if (!id) return;
+  return {
+    title: `${show.name} Nerede İzlenir? - Hangi Platformda?`,
+    description: `${show.name} dizisini Netflix, Disney+, Prime Video veya BluTV üzerinden izleyin. Kaç sezon, konusu ne ve oyuncular.`,
+    openGraph: {
+      images: [`https://image.tmdb.org/t/p/w500${show.poster_path}`],
+    },
+  };
+}
 
-    const fetchData = async () => {
-      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-      try {
-        // 1. Dizi Detaylarını Çek (Türkçe) - Endpoint: /tv/
-        const showRes = await fetch(
-          `https://api.themoviedb.org/3/tv/${id}?api_key=${apiKey}&language=tr-TR`
-        );
-        const showData = await showRes.json();
-        setShow(showData);
+// Sayfa Bileşeni (Server Side)
+export default async function TVDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
+  const showData = getShow(id);
+  const providersData = getProviders(id);
+  const [show, providers] = await Promise.all([showData, providersData]);
 
-        // 2. İzleme Platformlarını Çek - Endpoint: /tv/.../watch/providers
-        const providerRes = await fetch(
-          `https://api.themoviedb.org/3/tv/${id}/watch/providers?api_key=${apiKey}`
-        );
-        const providerData = await providerRes.json();
-        setProviders(providerData.results?.TR || null);
-
-      } catch (error) {
-        console.error("Veri çekme hatası:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id]);
-
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Yükleniyor...</div>;
-  if (!show) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Dizi bulunamadı.</div>;
+  if (!show) return notFound();
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
@@ -67,6 +73,7 @@ export default function TVDetail() {
         }}
       />
 
+      {/* İçerik */}
       <main className="relative z-10 max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12 flex-1">
         
         {/* Poster */}
@@ -102,7 +109,7 @@ export default function TVDetail() {
             {show.overview || "Bu dizi için Türkçe özet henüz eklenmemiş."}
           </p>
 
-          {/* İzleme Platformları */}
+          {/* Platformlar */}
           <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="text-blue-500">▶</span> Nerede İzlenir?
@@ -110,13 +117,17 @@ export default function TVDetail() {
 
             {providers ? (
               <div className="space-y-6">
-                {/* Flatrate (Abonelik) */}
                 {providers.flatrate && (
                   <div>
                     <p className="text-sm text-gray-400 mb-3 uppercase font-bold">Abonelik</p>
                     <div className="flex gap-4 flex-wrap">
                       {providers.flatrate.map((provider: any) => (
-                        <a key={provider.provider_id} href={providers.link} target="_blank" className="group relative">
+                        <a 
+                            key={provider.provider_id} 
+                            href={providers.link} 
+                            target="_blank"
+                            className="group relative"
+                        >
                           <img 
                             src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} 
                             alt={provider.provider_name}
