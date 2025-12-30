@@ -1,49 +1,55 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-export default function MovieDetail() {
-  const params = useParams(); // URL'deki ID'yi al
-  const id = params?.id; // ID'yi güvenli bir şekilde çek
+// API Key'i buraya alıyoruz (Server Component olduğu için güvenli)
+const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+
+// Veri Çekme Fonksiyonu
+async function getMovie(id: string) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=tr-TR`,
+    { next: { revalidate: 3600 } } // 1 saat önbellekte tutar (Hız için)
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function getProviders(id: string) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${API_KEY}`,
+    { next: { revalidate: 3600 } }
+  );
+  const data = await res.json();
+  return data.results?.TR || null;
+}
+
+// 👇 DİNAMİK SEO BAŞLIĞI (Burası Çok Önemli)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const movie = await getMovie(id);
   
-  const [movie, setMovie] = useState<any>(null);
-  const [providers, setProviders] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  if (!movie) return { title: 'Film Bulunamadı' };
 
-  useEffect(() => {
-    if (!id) return;
+  return {
+    title: `${movie.title} Nerede İzlenir? - Hangi Platformda?`,
+    description: `${movie.title} filmini Netflix, Disney+, Prime Video veya BluTV üzerinden izleyin. Yayın platformları ve kiralama seçenekleri.`,
+    openGraph: {
+      images: [`https://image.tmdb.org/t/p/w500${movie.poster_path}`],
+    },
+  };
+}
 
-    const fetchData = async () => {
-      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-      try {
-        // 1. Film Detaylarını Çek (Türkçe)
-        const movieRes = await fetch(
-          `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=tr-TR`
-        );
-        const movieData = await movieRes.json();
-        setMovie(movieData);
+// Sayfa Bileşeni (Artık 'async' ve Server Side)
+export default async function MovieDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
+  // Verileri paralel çekiyoruz (Daha hızlı)
+  const movieData = getMovie(id);
+  const providersData = getProviders(id);
+  const [movie, providers] = await Promise.all([movieData, providersData]);
 
-        // 2. İzleme Platformlarını Çek (Türkiye Bölgesi)
-        const providerRes = await fetch(
-          `https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${apiKey}`
-        );
-        const providerData = await providerRes.json();
-        // Sadece Türkiye (TR) verisini al
-        setProviders(providerData.results?.TR || null);
-
-      } catch (error) {
-        console.error("Veri çekme hatası:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id]);
-
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Yükleniyor...</div>;
-  if (!movie) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Film bulunamadı.</div>;
+  if (!movie) return notFound();
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
@@ -58,7 +64,7 @@ export default function MovieDetail() {
         </Link>
       </nav>
 
-      {/* Arka Plan Görseli (Blur Efektli) */}
+      {/* Arka Plan */}
       <div 
         className="fixed inset-0 z-0 opacity-20 pointer-events-none"
         style={{
@@ -68,9 +74,10 @@ export default function MovieDetail() {
         }}
       />
 
+      {/* İçerik */}
       <main className="relative z-10 max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12 flex-1">
         
-        {/* SOL Taraf: Poster */}
+        {/* Poster */}
         <div className="w-full md:w-1/3 flex-shrink-0">
           <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-800 relative group">
             {movie.poster_path ? (
@@ -85,7 +92,7 @@ export default function MovieDetail() {
           </div>
         </div>
 
-        {/* SAĞ Taraf: Detaylar ve Platformlar */}
+        {/* Detaylar */}
         <div className="flex-1">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">{movie.title}</h1>
           
@@ -104,7 +111,7 @@ export default function MovieDetail() {
             {movie.overview || "Bu film için Türkçe özet henüz eklenmemiş."}
           </p>
 
-          {/* 🎬 İZLEME PLATFORMLARI BÖLÜMÜ */}
+          {/* Platformlar */}
           <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="text-red-500">▶</span> Nerede İzlenir?
@@ -113,7 +120,6 @@ export default function MovieDetail() {
             {providers ? (
               <div className="space-y-6">
                 
-                {/* 1. ABONELİK (Flatrate) */}
                 {providers.flatrate && (
                   <div>
                     <p className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-bold">Abonelik ile İzle</p>
@@ -123,7 +129,6 @@ export default function MovieDetail() {
                           key={provider.provider_id}
                           href={providers.link} 
                           target="_blank"
-                          rel="noopener noreferrer"
                           className="group relative"
                         >
                           <img 
@@ -138,7 +143,6 @@ export default function MovieDetail() {
                   </div>
                 )}
 
-                {/* 2. KİRALA (Rent) */}
                 {providers.rent && (
                   <div>
                     <p className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-bold mt-4">Kirala</p>
@@ -148,7 +152,6 @@ export default function MovieDetail() {
                           key={provider.provider_id}
                           href={providers.link}
                           target="_blank"
-                          rel="noopener noreferrer"
                           className="group"
                         >
                           <img 
@@ -163,7 +166,6 @@ export default function MovieDetail() {
                   </div>
                 )}
                 
-                {/* Hiçbir seçenek yoksa */}
                 {!providers.flatrate && !providers.rent && !providers.buy && (
                    <div className="text-gray-400">Bu film şu an Türkiye dijital platformlarında bulunmuyor.</div>
                 )}
@@ -182,7 +184,7 @@ export default function MovieDetail() {
         </div>
       </main>
       
-      {/* Footer - TMDB Uyumlu */}
+      {/* Footer */}
       <footer className="w-full border-t border-gray-800 py-10 mt-auto flex flex-col items-center text-center gap-6 relative z-10 bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-3 opacity-70 hover:opacity-100 transition-opacity">
           <img 
@@ -191,12 +193,9 @@ export default function MovieDetail() {
             className="h-5" 
           />
           <p className="text-gray-500 text-xs max-w-sm leading-relaxed">
-            Bu ürün TMDB verilerini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.
+            Bu ürün TMDB verilerini kullanmaktadır.
           </p>
         </div>
-        <p className="text-gray-600 text-sm">
-          © 2025 WhereToStream. Tüm hakları saklıdır.
-        </p>
       </footer>
     </div>
   );
