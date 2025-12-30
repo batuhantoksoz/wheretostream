@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "WhereToStream - Hangi Film Nerede İzlenir?",
   description: "Netflix, BluTV, Prime Video ve Disney+ Türkiye içeriklerini arayın. Hangi filmin hangi platformda olduğunu hemen bulun.",
+  verification: {
+    google: 'fWP9uTEw1M5arjvuw457NtkeKIcMCtKwZFyY0zynDuU',
+  },
 };
 
 export default function RootLayout({
@@ -20,7 +23,6 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
       </body>
-      {/* Google Analytics Kodu */}
       <GoogleAnalytics gaId="G-ZD270XMJ3Y" />
     </html>
   );
