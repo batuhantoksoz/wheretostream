@@ -1,11 +1,27 @@
 import Link from 'next/link';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: "Blog & Rehber - WhereToStream",
+  description: "Netflix, Disney+ ve Prime Video film önerileri, izleme listeleri ve güncel rehberler.",
+};
 
 export default function BlogIndex() {
-  // Blog yazılarını burada elle tanımlıyoruz (İleride veritabanından gelebilir)
   const posts = [
+    // 👇 YENİ EKLENEN YAZI (En üstte)
+    {
+      slug: 'prime-video-best-series',
+      title: 'Amazon Prime Video En İyi 5 Dizi (2025)',
+      desc: 'The Boys, Fallout ve Reacher... Prime Video kütüphanesinin gizli hazinelerini keşfedin.',
+      category: 'PRIME VIDEO',
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-900/20',
+      icon: '📦'
+    },
+    // 👇 ESKİ YAZILAR
     {
       slug: 'disney-plus-marvel-guide',
-      title: 'Marvel Filmleri Hangi Sırayla İzlenmeli? (2025)',
+      title: 'Marvel Filmleri Hangi Sırayla İzlenmeli?',
       desc: 'MCU evrenine girmek isteyenler için kronolojik izleme sırası ve Disney+ rehberi.',
       category: 'DISNEY+',
       color: 'text-blue-400',
@@ -52,9 +68,10 @@ export default function BlogIndex() {
             <Link href={`/blog/${post.slug}`} key={post.slug} className="group">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-gray-600 transition duration-300 hover:shadow-2xl h-full flex flex-col">
                 
-                {/* Görsel Alanı (Placeholder) */}
-                <div className="h-48 bg-gray-800 flex items-center justify-center text-6xl group-hover:scale-105 transition-transform duration-500">
-                  {post.icon}
+                {/* Görsel Alanı */}
+                <div className="h-48 bg-gray-800 flex items-center justify-center text-6xl group-hover:scale-105 transition-transform duration-500 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-50"></div>
+                  <span className="relative z-10">{post.icon}</span>
                 </div>
                 
                 {/* İçerik */}
@@ -81,7 +98,7 @@ export default function BlogIndex() {
 
       {/* Footer */}
       <footer className="w-full border-t border-gray-800 py-10 mt-auto text-center">
-        <p className="text-gray-600 text-sm">© 2025 WhereToStream.</p>
+        <p className="text-gray-600 text-sm">© 2026 WhereToStream.</p>
       </footer>
 
     </div>
