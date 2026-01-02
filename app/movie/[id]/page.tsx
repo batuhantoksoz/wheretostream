@@ -2,14 +2,13 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-// API Key'i buraya alıyoruz (Server Component olduğu için güvenli)
 const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
-// Veri Çekme Fonksiyonu
+// Veri Çekme Fonksiyonları
 async function getMovie(id: string) {
   const res = await fetch(
     `https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=tr-TR`,
-    { next: { revalidate: 3600 } } // 1 saat önbellekte tutar (Hız için)
+    { next: { revalidate: 3600 } }
   );
   if (!res.ok) return null;
   return res.json();
@@ -24,7 +23,7 @@ async function getProviders(id: string) {
   return data.results?.TR || null;
 }
 
-// 👇 DİNAMİK SEO BAŞLIĞI (Burası Çok Önemli)
+// Dinamik Başlık (SEO)
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const movie = await getMovie(id);
@@ -33,23 +32,36 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   return {
     title: `${movie.title} Nerede İzlenir? - Hangi Platformda?`,
-    description: `${movie.title} filmini Netflix, Disney+, Prime Video veya BluTV üzerinden izleyin. Yayın platformları ve kiralama seçenekleri.`,
+    description: `${movie.title} filmini izleme seçenekleri. Vizyon tarihi, konusu ve yayınlanacağı platformlar.`,
     openGraph: {
       images: [`https://image.tmdb.org/t/p/w500${movie.poster_path}`],
     },
   };
 }
 
-// Sayfa Bileşeni (Artık 'async' ve Server Side)
 export default async function MovieDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  // Verileri paralel çekiyoruz (Daha hızlı)
   const movieData = getMovie(id);
   const providersData = getProviders(id);
   const [movie, providers] = await Promise.all([movieData, providersData]);
 
   if (!movie) return notFound();
+
+  // Tarih ve Durum Kontrolleri
+  const releaseDate = new Date(movie.release_date);
+  const today = new Date();
+  const isUpcoming = releaseDate > today; // Gelecek film mi?
+  
+  // Formatlı Tarih
+  const formattedDate = releaseDate.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Google Arama Linki Oluştur
+  const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(movie.title + " izle")}`;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
@@ -89,6 +101,12 @@ export default async function MovieDetail({ params }: { params: Promise<{ id: st
             ) : (
               <div className="w-full h-96 bg-gray-800 flex items-center justify-center">Resim Yok</div>
             )}
+            {/* Etiketler */}
+            {isUpcoming && (
+              <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                YAKINDA
+              </div>
+            )}
           </div>
         </div>
 
@@ -97,7 +115,7 @@ export default async function MovieDetail({ params }: { params: Promise<{ id: st
           <h1 className="text-4xl md:text-6xl font-bold mb-4">{movie.title}</h1>
           
           <div className="flex items-center gap-4 text-gray-400 mb-8 text-sm md:text-base flex-wrap">
-            <span>{movie.release_date?.split('-')[0]}</span>
+            <span className="bg-gray-800 text-white px-2 py-1 rounded">{movie.release_date?.split('-')[0]}</span>
             <span>•</span>
             <span>{movie.genres?.map((g: any) => g.name).join(', ')}</span>
             <span>•</span>
@@ -111,13 +129,24 @@ export default async function MovieDetail({ params }: { params: Promise<{ id: st
             {movie.overview || "Bu film için Türkçe özet henüz eklenmemiş."}
           </p>
 
-          {/* Platformlar */}
-          <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700">
+          {/* Platform Kutusu */}
+          <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700 shadow-xl">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="text-red-500">▶</span> Nerede İzlenir?
             </h3>
 
-            {providers ? (
+            {/* SENARYO 1: Film Henüz Çıkmadıysa */}
+            {isUpcoming ? (
+              <div className="text-center py-6 bg-red-900/10 rounded-xl border border-red-900/30">
+                <p className="text-3xl mb-3">🗓️</p>
+                <h4 className="text-lg font-bold text-red-400 mb-2">Henüz Vizyona Girmedi</h4>
+                <p className="text-gray-400 text-sm px-4">
+                  Bu film <strong>{formattedDate}</strong> tarihinde sinemalarda olacak. 
+                  Dijital platformlara gelmesi vizyon tarihinden sonra gerçekleşecektir.
+                </p>
+              </div>
+            ) : providers ? (
+              // SENARYO 2: Film Çıktı ve Verisi Var
               <div className="space-y-6">
                 
                 {providers.flatrate && (
@@ -167,13 +196,36 @@ export default async function MovieDetail({ params }: { params: Promise<{ id: st
                 )}
                 
                 {!providers.flatrate && !providers.rent && !providers.buy && (
-                   <div className="text-gray-400">Bu film şu an Türkiye dijital platformlarında bulunmuyor.</div>
+                   <div className="flex flex-col gap-4">
+                      <div className="text-gray-400 p-4 bg-gray-800/50 rounded-lg text-sm">
+                        Bu film vizyona girmiş olsa da, şu an sistemimizdeki kayıtlı dijital platformlarda görünmüyor.
+                      </div>
+                      <a 
+                        href={googleSearchUrl}
+                        target="_blank"
+                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors w-full md:w-auto"
+                      >
+                        🔍 Google'da Ara
+                      </a>
+                   </div>
                 )}
-
               </div>
             ) : (
-              <div className="text-gray-400">
-                Bu filmin Türkiye yayıncısı henüz veritabanımıza eklenmemiş.
+              // SENARYO 3: Film Çıktı Ama HİÇBİR Veri Yok (Boş Data)
+              <div className="flex flex-col items-start gap-4">
+                <div className="text-gray-400 p-4 bg-gray-800/50 rounded-lg w-full text-sm leading-relaxed">
+                   <strong className="text-white block mb-1">Veri Bulunamadı</strong>
+                   Bu filmin Türkiye yayıncısı henüz veritabanımıza eklenmemiş. Yerel platformlarda veya sinemalarda olabilir.
+                </div>
+                
+                {/* Kurtarıcı Buton */}
+                <a 
+                  href={googleSearchUrl}
+                  target="_blank"
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg transition-colors w-full"
+                >
+                  <span className="text-xl">G</span> "{movie.title}" için Google'da Ara
+                </a>
               </div>
             )}
             
@@ -186,15 +238,9 @@ export default async function MovieDetail({ params }: { params: Promise<{ id: st
       
       {/* Footer */}
       <footer className="w-full border-t border-gray-800 py-10 mt-auto flex flex-col items-center text-center gap-6 relative z-10 bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-3 opacity-70 hover:opacity-100 transition-opacity">
-          <img 
-            src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" 
-            alt="TMDB Logo" 
-            className="h-5" 
-          />
-          <p className="text-gray-500 text-xs max-w-sm leading-relaxed">
-            Bu ürün TMDB verilerini kullanmaktadır.
-          </p>
+        <div className="flex flex-col items-center gap-3 opacity-70">
+          <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB" className="h-5" />
+          <p className="text-gray-500 text-xs">Bu ürün TMDB verilerini kullanmaktadır.</p>
         </div>
       </footer>
     </div>
