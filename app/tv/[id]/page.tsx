@@ -2,10 +2,9 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-// API Key
 const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
-// Veri Çekme Fonksiyonları (Diziler İçin)
+// Veri Çekme Fonksiyonları
 async function getShow(id: string) {
   const res = await fetch(
     `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=tr-TR`,
@@ -24,7 +23,7 @@ async function getProviders(id: string) {
   return data.results?.TR || null;
 }
 
-// 👇 DİNAMİK SEO BAŞLIĞI (Diziler İçin)
+// Dinamik SEO Başlığı
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const show = await getShow(id);
@@ -33,14 +32,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   return {
     title: `${show.name} Nerede İzlenir? - Hangi Platformda?`,
-    description: `${show.name} dizisini Netflix, Disney+, Prime Video veya BluTV üzerinden izleyin. Kaç sezon, konusu ne ve oyuncular.`,
+    description: `${show.name} dizisini izleme seçenekleri. Oyuncular, konusu ve yayınlanacağı dijital platformlar.`,
     openGraph: {
       images: [`https://image.tmdb.org/t/p/w500${show.poster_path}`],
     },
   };
 }
 
-// Sayfa Bileşeni (Server Side)
 export default async function TVDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
@@ -49,6 +47,21 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
   const [show, providers] = await Promise.all([showData, providersData]);
 
   if (!show) return notFound();
+
+  // Tarih Kontrolleri
+  const firstAirDate = new Date(show.first_air_date);
+  const today = new Date();
+  const isUpcoming = firstAirDate > today; // Gelecek dizi mi?
+  
+  // Formatlı Tarih
+  const formattedDate = firstAirDate.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Google Arama Linki
+  const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(show.name + " dizi izle")}`;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
@@ -78,7 +91,7 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
         
         {/* Poster */}
         <div className="w-full md:w-1/3 flex-shrink-0">
-          <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
+          <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-800 relative group">
             {show.poster_path ? (
               <img 
                 src={`https://image.tmdb.org/t/p/w500${show.poster_path}`} 
@@ -87,6 +100,12 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
               />
             ) : (
               <div className="w-full h-96 bg-gray-800 flex items-center justify-center">Resim Yok</div>
+            )}
+             {/* Etiket */}
+             {isUpcoming && (
+              <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                YAKINDA
+              </div>
             )}
           </div>
         </div>
@@ -97,7 +116,7 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
           <p className="text-xl text-gray-400 mb-6 italic">{show.original_name}</p>
           
           <div className="flex items-center gap-4 text-gray-400 mb-8 text-sm md:text-base flex-wrap">
-            <span className="bg-gray-800 px-2 py-1 rounded text-white">{show.first_air_date?.split('-')[0]}</span>
+            <span className="bg-gray-800 text-white px-2 py-1 rounded">{show.first_air_date?.split('-')[0]}</span>
             <span>•</span>
             <span>{show.number_of_seasons} Sezon</span>
             <span>•</span>
@@ -109,13 +128,23 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
             {show.overview || "Bu dizi için Türkçe özet henüz eklenmemiş."}
           </p>
 
-          {/* Platformlar */}
-          <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700">
+          {/* Platform Kutusu */}
+          <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700 shadow-xl">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="text-blue-500">▶</span> Nerede İzlenir?
             </h3>
 
-            {providers ? (
+            {/* SENARYO 1: Dizi Henüz Başlamadıysa */}
+            {isUpcoming ? (
+              <div className="text-center py-6 bg-blue-900/10 rounded-xl border border-blue-900/30">
+                <p className="text-3xl mb-3">🗓️</p>
+                <h4 className="text-lg font-bold text-blue-400 mb-2">Henüz Yayınlanmadı</h4>
+                <p className="text-gray-400 text-sm px-4">
+                  Bu dizi ilk bölümüyle <strong>{formattedDate}</strong> tarihinde yayınlanmaya başlayacak.
+                </p>
+              </div>
+            ) : providers ? (
+              // SENARYO 2: Dizi Var ve Platform Verisi Mevcut
               <div className="space-y-6">
                 {providers.flatrate && (
                   <div>
@@ -132,18 +161,46 @@ export default async function TVDetail({ params }: { params: Promise<{ id: strin
                             src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} 
                             alt={provider.provider_name}
                             className="w-16 h-16 rounded-xl shadow-lg hover:scale-110 transition-transform"
+                            title={`${provider.provider_name} üzerinden izle`}
                           />
                         </a>
                       ))}
                     </div>
                   </div>
                 )}
+                
                 {!providers.flatrate && !providers.rent && !providers.buy && (
-                   <div className="text-gray-400">Bu dizi şu an Türkiye dijital platformlarında bulunmuyor.</div>
+                   <div className="flex flex-col gap-4">
+                      <div className="text-gray-400 p-4 bg-gray-800/50 rounded-lg text-sm">
+                        Bu dizi yayınlanmış olsa da, şu an sistemimizdeki kayıtlı dijital platformlarda görünmüyor.
+                      </div>
+                      <a 
+                        href={googleSearchUrl}
+                        target="_blank"
+                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors w-full md:w-auto"
+                      >
+                        🔍 Google'da Ara
+                      </a>
+                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-gray-400">Yayıncı bilgisi bulunamadı.</div>
+              // SENARYO 3: Dizi Var Ama HİÇ Veri Yok
+              <div className="flex flex-col items-start gap-4">
+                <div className="text-gray-400 p-4 bg-gray-800/50 rounded-lg w-full text-sm leading-relaxed">
+                   <strong className="text-white block mb-1">Veri Bulunamadı</strong>
+                   Bu dizinin Türkiye yayıncısı henüz veritabanımıza eklenmemiş.
+                </div>
+                
+                {/* Kurtarıcı Buton */}
+                <a 
+                  href={googleSearchUrl}
+                  target="_blank"
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-lg transition-colors w-full"
+                >
+                  <span className="text-xl">G</span> "{show.name}" için Google'da Ara
+                </a>
+              </div>
             )}
             <p className="text-xs text-gray-500 mt-6 pt-4 border-t border-gray-700">Veriler JustWatch tarafından sağlanmaktadır.</p>
           </div>
